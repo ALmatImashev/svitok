@@ -442,14 +442,12 @@ async function parseEPUB(buf){
     if(doc.getElementsByTagName('parsererror').length) doc = new DOMParser().parseFromString(html,'text/html');
     const body = doc.body || doc.getElementsByTagNameNS('*','body')[0]; if(!body) continue;
     body.querySelectorAll('script,style,sup a[href],a.noteref').forEach(e=>e.remove());
-    body.querySelectorAll('br').forEach(b=>b.replaceWith(doc.createTextNode('
-')));
+    body.querySelectorAll('br').forEach(b=>b.replaceWith(doc.createTextNode('\u2028')));
     body.querySelectorAll(SEL).forEach(el=>{
       if(el.querySelector(SEL)) return;
       const n = el.localName.toLowerCase();
       const h = /^h[1-2]$/.test(n) ? 1 : /^h[3-6]$/.test(n) ? 2 : 0;
-      el.textContent.split('
-').map(clean).filter(Boolean).forEach(x=>blocks.push(h?{h,x}:{x}));
+      el.textContent.split('\u2028').map(clean).filter(Boolean).forEach(x=>blocks.push(h?{h,x}:{x}));
     });
   }
   return {title, author, blocks};
