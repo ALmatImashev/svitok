@@ -132,6 +132,26 @@ body.guard .wm{display:block}
 .sw.faint{background:color-mix(in srgb,var(--accent) 11%,transparent);outline:1px solid var(--line)}
 #setSheet.paceOff .paceOpt{display:none}
 .spd{min-width:36px}
+
+/* bookcases & shelves */
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px;color:var(--muted);margin:-8px 0 16px}
+.crumbs:empty{display:none}
+.crumbs button{color:var(--accent);font-weight:500}
+.crumbs b{color:var(--fg);font-weight:600}
+.folder{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.frow{display:flex;align-items:center}
+.fopen{flex:1;min-width:0;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;align-items:center;text-align:left;padding:14px 4px 14px 16px}
+.ficon{grid-row:1/3;width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);display:grid;place-items:center}
+.fname{font-family:Literata,serif;font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fmore{margin-right:6px;color:var(--muted)}
+.facts{display:none;gap:8px;padding:0 16px 14px;justify-content:flex-end}
+.folder.open .facts{display:flex}
+.facts button,.book .mv{font-size:13px;padding:5px 10px;border-radius:8px;color:var(--muted)}
+.facts button:not(.del){border:1px solid var(--line)}
+.book .mv{border:1px solid var(--line)}
+.sect{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 2px -2px}
+.mvico{display:inline-grid;vertical-align:-4px;margin-right:8px;color:var(--accent)}
+.mvico svg{width:18px;height:18px}
 </style>
 </head>
 <body>
@@ -160,11 +180,13 @@ body.guard .wm{display:block}
       <div class="who"><div id="whoEmail"></div><button class="langBtn" type="button"></button> · <button id="logout" data-t="logout"></button></div>
     </div>
     <p class="tag" data-t="libTag"></p>
+    <div class="crumbs" id="crumbs"></div>
     <div class="actions">
       <label class="btn primary" for="file">
         <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span data-t="upload"></span>
       </label>
       <input type="file" id="file" hidden>
+      <button class="btn ghost" id="newFolder" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span id="newFolderT"></span></button>
     </div>
     <div class="books" id="books"><div class="empty" data-t="libLoading"></div></div>
     <p class="note" data-t="libNote"></p>
@@ -215,6 +237,21 @@ body.guard .wm{display:block}
   <div class="hist" id="hist"></div>
 </div>
 
+<div class="sheet" id="nameSheet">
+  <div class="grab"></div>
+  <h4 id="nameTitle"></h4>
+  <form id="nameForm" style="display:grid;gap:12px">
+    <input class="inp" id="nameInp" maxlength="80" data-tp="namePh" autocomplete="off">
+    <button class="btn primary wide" type="submit" data-t="save"></button>
+  </form>
+</div>
+
+<div class="sheet" id="moveSheet">
+  <div class="grab"></div>
+  <h4 data-t="moveTitle"></h4>
+  <div class="hist" id="moveList"></div>
+</div>
+
 <div class="toast" id="toast"><span id="toastT"></span><button id="toastB" data-t="undo"></button></div>
 <div class="loading" id="loading"><span id="loadingT"></span></div>
 
@@ -254,6 +291,10 @@ const DICT = {
   view:'Вид текста', fontSize:'Размер шрифта', lineH:'Межстрочный интервал', font:'Шрифт', serif:'С засечками', sans:'Без засечек',
   theme:'Тема', light:'Светлая', sepia:'Сепия', dark:'Тёмная',
   aBack:'К библиотеке', aSettings:'Настройки', aHist:'История меток', aToMark:'К метке', aSlower:'Медленнее', aFaster:'Быстрее', aAuto:'Автопрокрутка',
+  errNet:'Нет связи с сервером. Проверь интернет и попробуй ещё раз.', library:'Библиотека', addCab:'Шкаф', addShelf:'Полка', newCab:'Новый шкаф', newShelf:'Новая полка', renameCab:'Переименовать шкаф', renameShelf:'Переименовать полку',
+  namePh:'Название', save:'Сохранить', rename:'Переименовать', delFolderSure:'Удалить? Книги останутся в библиотеке', unsorted:'Без шкафа', noShelf:'Не на полке',
+  emptyHere:'Здесь пока пусто. Загрузи книгу или переложи сюда существующую.', move:'Переложить', moveTitle:'Куда переложить книгу', noCabYet:'Сначала создай шкаф на главной странице библиотеки.',
+  bk:['книга','книги','книг'], shf:['полка','полки','полок'], folderErr:'Не получилось: ', aMore:'Действия',
   paceMode:'Скорочтение', off:'Выкл', on:'Вкл', wpm:'Скорость, слов в минуту', shade:'Подсветка слова', shadeDark:'Яркая', shadeMid:'Средняя', shadeFaint:'Едва видна', pacePaused:' · скорочтение на паузе', paceHint:'Кнопка ▶ внизу запускает подсветку, − и + меняют скорость. Метку по-прежнему ставишь сам — касанием слова.',
   noZip:'Не загрузилась библиотека для EPUB и архивов. Проверь интернет и обнови страницу.', notEpub:'Это не похоже на EPUB', noBookInZip:'В архиве нет книги'
  },
@@ -275,6 +316,10 @@ const DICT = {
   view:'Text', fontSize:'Font size', lineH:'Line spacing', font:'Font', serif:'Serif', sans:'Sans',
   theme:'Theme', light:'Light', sepia:'Sepia', dark:'Dark',
   aBack:'Back to library', aSettings:'Settings', aHist:'Bookmark history', aToMark:'Go to bookmark', aSlower:'Slower', aFaster:'Faster', aAuto:'Auto-scroll',
+  errNet:'Can’t reach the server. Check your connection and try again.', library:'Library', addCab:'Bookcase', addShelf:'Shelf', newCab:'New bookcase', newShelf:'New shelf', renameCab:'Rename bookcase', renameShelf:'Rename shelf',
+  namePh:'Name', save:'Save', rename:'Rename', delFolderSure:'Delete? Books stay in your library', unsorted:'Not in a bookcase', noShelf:'Not on a shelf',
+  emptyHere:'Nothing here yet. Add a book or move one here.', move:'Move', moveTitle:'Move book to', noCabYet:'Create a bookcase on the library home first.',
+  bk:['book','books','books'], shf:['shelf','shelves','shelves'], folderErr:'Couldn’t do that: ', aMore:'Actions',
   paceMode:'Speed reading', off:'Off', on:'On', wpm:'Speed, words per minute', shade:'Word highlight', shadeDark:'Strong', shadeMid:'Medium', shadeFaint:'Barely visible', pacePaused:' · speed reading paused', paceHint:'The ▶ button below starts the highlight; − and + change the speed. You still set the bookmark yourself by tapping a word.',
   noZip:'Couldn’t load the EPUB/archive reader. Check your connection and refresh.', notEpub:'This doesn’t look like an EPUB', noBookInZip:'No book found in the archive'
  }
@@ -397,12 +442,14 @@ async function parseEPUB(buf){
     if(doc.getElementsByTagName('parsererror').length) doc = new DOMParser().parseFromString(html,'text/html');
     const body = doc.body || doc.getElementsByTagNameNS('*','body')[0]; if(!body) continue;
     body.querySelectorAll('script,style,sup a[href],a.noteref').forEach(e=>e.remove());
-    body.querySelectorAll('br').forEach(b=>b.replaceWith(doc.createTextNode(' ')));
+    body.querySelectorAll('br').forEach(b=>b.replaceWith(doc.createTextNode('
+')));
     body.querySelectorAll(SEL).forEach(el=>{
       if(el.querySelector(SEL)) return;
       const n = el.localName.toLowerCase();
       const h = /^h[1-2]$/.test(n) ? 1 : /^h[3-6]$/.test(n) ? 2 : 0;
-      el.textContent.split(' ').map(clean).filter(Boolean).forEach(x=>blocks.push(h?{h,x}:{x}));
+      el.textContent.split('
+').map(clean).filter(Boolean).forEach(x=>blocks.push(h?{h,x}:{x}));
     });
   }
   return {title, author, blocks};
@@ -447,6 +494,7 @@ const ERR = {
   'Invalid login credentials':'errCreds',
   'Email not confirmed':'errConfirm',
   'User already registered':'errExists',
+  'Load failed':'errNet', 'Failed to fetch':'errNet', 'NetworkError when attempting to fetch resource.':'errNet',
 };
 $('#authForm').addEventListener('submit', async e=>{
   e.preventDefault();
@@ -511,50 +559,180 @@ $('#shadeSeg').addEventListener('click', e=>{ const b=e.target.closest('button')
 $('#langSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b) setLang(b.dataset.v); });
 $('#themeSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b){ S.theme=b.dataset.v; applySettings(); } });
 
-/* ---------- library ---------- */
-let libBooks = [];
+/* ---------- library: bookcases (шкаф) and shelves (полка) ---------- */
+let libBooks = [], shelves = [], places = {};
+let view = Object.assign({cab:null, shelf:null}, lsGet('svitok.view', {}));
+const shelfById = id => shelves.find(s=>s.id===id);
+function plural(n, forms){
+  if(LANG!=='ru') return n===1 ? forms[0] : forms[1];
+  const a = n%10, b = n%100;
+  return forms[a===1 && b!==11 ? 0 : a>=2 && a<=4 && (b<10 || b>=20) ? 1 : 2];
+}
+function where(bookId){
+  const s = places[bookId] && shelfById(places[bookId]);
+  if(!s) return {cab:null, shelf:null};
+  return s.parent_id ? {cab:s.parent_id, shelf:s.id} : {cab:s.id, shelf:null};
+}
 async function lastMarks(){
   const {data, error} = await sb.from('marks').select('id,book_id,b,o,e,w,created_at').order('created_at',{ascending:false}).limit(2000);
   if(error) throw error;
   const m = {}; (data||[]).forEach(r=>{ if(!m[r.book_id]) m[r.book_id] = r; });
   return m;
 }
+async function loadLib(){
+  const [bk, marks, sh, pl] = await Promise.all([
+    sb.from('books').select('id,owner,title,author,block_count,chunk_starts,ready,created_at').order('created_at',{ascending:false}),
+    lastMarks(),
+    sb.from('shelves').select('id,parent_id,name,created_at').order('created_at',{ascending:true}),
+    sb.from('book_places').select('book_id,shelf_id')
+  ]);
+  for(const r of [bk, sh, pl]) if(r.error) throw r.error;
+  libBooks = (bk.data||[]).map(b=>Object.assign(b,{mark:marks[b.id]||null}));
+  libBooks.sort((a,b)=>new Date(b.mark?b.mark.created_at:b.created_at) - new Date(a.mark?a.mark.created_at:a.created_at));
+  shelves = sh.data||[];
+  places = {}; (pl.data||[]).forEach(p=>places[p.book_id] = p.shelf_id);
+  if(view.cab && !shelfById(view.cab)) view = {cab:null, shelf:null};
+  if(view.shelf && !shelfById(view.shelf)) view.shelf = null;
+}
 async function renderLib(){
+  try{ await loadLib(); }
+  catch(err){ $('#books').innerHTML = `<div class="empty">${T('libErr')}<br>${esc(err.message||'')}</div>`; return; }
+  drawLib();
+}
+const ICON_CAB = '<svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16M10 7.5h4M10 16.5h4"/></svg>';
+const ICON_SHELF = '<svg viewBox="0 0 24 24"><path d="M3 20h18M6 20V6M9.5 20V9M13 20V5l4 1-2 14"/></svg>';
+function folderCard(s){
+  const isCab = !s.parent_id;
+  const n = libBooks.filter(b=>{ const w = where(b.id); return isCab ? w.cab===s.id : w.shelf===s.id; }).length;
+  const k = isCab ? shelves.filter(x=>x.parent_id===s.id).length : 0;
+  const meta = `${n} ${plural(n,T('bk'))}` + (isCab && k ? ` · ${k} ${plural(k,T('shf'))}` : '');
+  return `<div class="folder" data-sid="${s.id}">
+    <div class="frow"><button class="fopen"><span class="ficon">${isCab?ICON_CAB:ICON_SHELF}</span><span class="fname">${esc(s.name)}</span><span class="meta">${meta}</span></button>
+    <button class="ib fmore" aria-label="${T('aMore')}"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></svg></button></div>
+    <div class="facts"><button data-a="rename">${T('rename')}</button><button data-a="delete" class="del">${T('del')}</button></div>
+  </div>`;
+}
+function bookCard(m){
+  const mine = m.owner === me.id;
+  const acts = `<div class="row"><button class="mv">${T('move')}</button>${mine?`<button class="del">${T('del')}</button>`:''}</div>`;
+  if(!m.ready) return `<div class="book" data-id="${m.id}"><h3>${esc(m.title)}</h3><div class="meta">${T('notReady')}</div>${mine?`<div class="row"><span></span><button class="del">${T('del')}</button></div>`:''}</div>`;
+  const pct = m.mark ? Math.max(1, Math.round((m.mark.b+1)/m.block_count*100)) : 0;
+  const whereTxt = m.mark ? T('stoppedAt',{w:esc(m.mark.w)}) + ` · ${fmtDate(m.mark.created_at)}` : T('notStarted');
+  return `<div class="book" data-id="${m.id}">
+    <button class="open"><h3>${esc(m.title)}${mine?'':`<span class="badge">${T('shared')}</span>`}</h3>${m.author?`<div class="meta">${esc(m.author)}</div>`:''}</button>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="row"><div class="meta">${whereTxt}</div><div class="meta">${pct}%</div></div>
+    ${acts}
+  </div>`;
+}
+function drawLib(){
+  lsSet('svitok.view', view);
+  const cab = view.cab && shelfById(view.cab), sh = view.shelf && shelfById(view.shelf);
+  $('#crumbs').innerHTML = cab ? `<button data-go="root">${T('library')}</button><span>›</span>` +
+    (sh ? `<button data-go="cab">${esc(cab.name)}</button><span>›</span><b>${esc(sh.name)}</b>` : `<b>${esc(cab.name)}</b>`) : '';
+  $('#newFolder').style.display = sh ? 'none' : '';
+  $('#newFolderT').textContent = T(cab ? 'addShelf' : 'addCab');
+  const folders = sh ? [] : shelves.filter(s => cab ? s.parent_id===cab.id : !s.parent_id);
+  const here = libBooks.filter(b=>{ const w = where(b.id); return !cab ? !w.cab : sh ? w.shelf===sh.id : (w.cab===cab.id && !w.shelf); });
   const box = $('#books');
-  try{
-    const [{data:books, error}, marks] = await Promise.all([
-      sb.from('books').select('id,owner,title,author,block_count,chunk_starts,ready,created_at').order('created_at',{ascending:false}),
-      lastMarks()
-    ]);
-    if(error) throw error;
-    libBooks = (books||[]).map(b=>Object.assign(b,{mark:marks[b.id]||null}));
-    libBooks.sort((a,b)=>new Date(b.mark?b.mark.created_at:b.created_at) - new Date(a.mark?a.mark.created_at:a.created_at));
-  }catch(err){ box.innerHTML = `<div class="empty">${T('libErr')}<br>${esc(err.message||'')}</div>`; return; }
-  if(!libBooks.length){ box.innerHTML = `<div class="empty">${T('libEmpty')}</div>`; return; }
-  box.innerHTML = libBooks.map(m=>{
-    const mine = m.owner === me.id;
-    if(!m.ready) return `<div class="book" data-id="${m.id}"><h3>${esc(m.title)}</h3><div class="meta">${T('notReady')}</div><div class="row"><span></span>${mine?`<button class="del">${T('del')}</button>`:''}</div></div>`;
-    const pct = m.mark ? Math.max(1, Math.round((m.mark.b+1)/m.block_count*100)) : 0;
-    const where = m.mark ? T('stoppedAt',{w:esc(m.mark.w)}) + ` · ${fmtDate(m.mark.created_at)}` : T('notStarted');
-    return `<div class="book" data-id="${m.id}">
-      <button class="open"><h3>${esc(m.title)}${mine?'':`<span class="badge">${T('shared')}</span>`}</h3>${m.author?`<div class="meta">${esc(m.author)}</div>`:''}</button>
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      <div class="row"><div class="meta">${where}</div><div class="meta">${pct}%</div></div>
-      ${mine?`<div class="row"><span></span><button class="del">${T('del')}</button></div>`:''}
-    </div>`;
-  }).join('');
+  if(!folders.length && !here.length){ box.innerHTML = `<div class="empty">${!cab && !libBooks.length ? T('libEmpty') : T('emptyHere')}</div>`; return; }
+  box.innerHTML = folders.map(folderCard).join('') +
+    (folders.length && here.length ? `<div class="sect">${T(cab ? 'noShelf' : 'unsorted')}</div>` : '') +
+    here.map(bookCard).join('');
+}
+function go(cab, shelf){ view = {cab:cab||null, shelf:shelf||null}; drawLib(); window.scrollTo(0,0); }
+$('#crumbs').addEventListener('click', e=>{
+  const b = e.target.closest('[data-go]'); if(!b) return;
+  if(b.dataset.go==='root') go(); else go(view.cab);
+});
+function twoTap(btn, sureText, fn){
+  if(!btn.classList.contains('sure')){
+    const old = btn.textContent; btn.classList.add('sure'); btn.textContent = sureText;
+    setTimeout(()=>{ btn.classList.remove('sure'); btn.textContent = old; }, 3000); return;
+  }
+  fn();
 }
 $('#books').addEventListener('click', async e=>{
+  const folder = e.target.closest('.folder');
+  if(folder){
+    const s = shelfById(folder.dataset.sid); if(!s) return;
+    if(e.target.closest('.fopen')){ s.parent_id ? go(s.parent_id, s.id) : go(s.id); return; }
+    if(e.target.closest('.fmore')){ folder.classList.toggle('open'); return; }
+    const a = e.target.closest('[data-a]'); if(!a) return;
+    if(a.dataset.a==='rename') openName('rename', s);
+    else twoTap(a, T('delFolderSure'), async ()=>{
+      const {error} = await sb.from('shelves').delete().eq('id', s.id);
+      if(error) toast(T('folderErr')+error.message);
+      renderLib();
+    });
+    return;
+  }
   const card = e.target.closest('.book'); if(!card) return;
   const id = card.dataset.id;
   const d = e.target.closest('.del');
   if(d){
-    if(!d.classList.contains('sure')){ d.classList.add('sure'); d.textContent=T('delSure'); setTimeout(()=>{ d.classList.remove('sure'); d.textContent=T('del'); },3000); return; }
-    const {error} = await sb.from('books').delete().eq('id', id);
-    if(error) toast(T('delErr')+error.message);
-    renderLib(); return;
+    twoTap(d, T('delSure'), async ()=>{
+      const {error} = await sb.from('books').delete().eq('id', id);
+      if(error) toast(T('delErr')+error.message);
+      renderLib();
+    });
+    return;
   }
+  if(e.target.closest('.mv')){ openMove(id); return; }
   if(e.target.closest('.open')){ const b = libBooks.find(x=>x.id===id); if(b) openBook(b); }
+});
+
+/* name sheet: create / rename */
+let nameCtx = null;
+function openName(kind, s){
+  nameCtx = {kind, s};
+  $('#nameTitle').textContent = T(kind==='rename' ? (s.parent_id ? 'renameShelf' : 'renameCab') : kind);
+  $('#nameInp').value = s ? s.name : '';
+  openSheet('#nameSheet');
+  setTimeout(()=>$('#nameInp').focus(), 280);
+}
+$('#newFolder').addEventListener('click', ()=>openName(view.cab ? 'newShelf' : 'newCab'));
+$('#nameForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name = $('#nameInp').value.replace(/\s+/g,' ').trim().slice(0,80);
+  if(!name || !nameCtx) return;
+  const {kind, s} = nameCtx; nameCtx = null;
+  closeSheets(); $('#nameInp').blur();
+  const {error} = kind==='rename'
+    ? await sb.from('shelves').update({name}).eq('id', s.id)
+    : await sb.from('shelves').insert({name, parent_id: kind==='newShelf' ? view.cab : null});
+  if(error) toast(T('folderErr')+error.message);
+  renderLib();
+});
+
+/* move sheet */
+let moveId = null;
+function openMove(bookId){
+  moveId = bookId;
+  const cur = places[bookId] || null;
+  const cabs = shelves.filter(s=>!s.parent_id);
+  const item = (id, label, sub) => `<button class="h${(id||null)===cur?' cur':''}" data-to="${id||''}"><div class="s" style="${sub?'padding-left:22px':''}">${label}</div></button>`;
+  let html = item(null, esc(T('unsorted')));
+  cabs.forEach(c=>{
+    html += item(c.id, `<span class="mvico">${ICON_CAB}</span>${esc(c.name)}`);
+    shelves.filter(s=>s.parent_id===c.id).forEach(s=>{ html += item(s.id, `<span class="mvico">${ICON_SHELF}</span>${esc(s.name)}`, true); });
+  });
+  if(!cabs.length) html += `<div class="meta" style="padding:8px 12px">${T('noCabYet')}</div>`;
+  $('#moveList').innerHTML = html;
+  openSheet('#moveSheet');
+}
+async function placeBook(bookId, shelfId){
+  const {error} = shelfId
+    ? await sb.from('book_places').upsert({user_id:me.id, book_id:bookId, shelf_id:shelfId}, {onConflict:'user_id,book_id'})
+    : await sb.from('book_places').delete().eq('book_id', bookId);
+  if(error) throw error;
+  if(shelfId) places[bookId] = shelfId; else delete places[bookId];
+}
+$('#moveList').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-to]'); if(!b || !moveId) return;
+  const id = moveId; moveId = null; closeSheets();
+  try{ await placeBook(id, b.dataset.to || null); drawLib(); }
+  catch(err){ toast(T('folderErr')+err.message); renderLib(); }
 });
 
 /* upload */
@@ -589,7 +767,12 @@ async function uploadBook(res){
 $('#file').addEventListener('change', async e=>{
   const f = e.target.files[0]; e.target.value=''; if(!f) return;
   loading(true, T('readingFile'));
-  try{ const b = await uploadBook(await parseFile(f)); loading(false); await openBook(b); }
+  try{
+    const b = await uploadBook(await parseFile(f));
+    const target = view.shelf || view.cab;
+    if(target){ try{ await placeBook(b.id, target); }catch(err){ toast(T('folderErr')+err.message); } }
+    loading(false); await openBook(b);
+  }
   catch(err){ loading(false); toast(err.message || T('uploadErr')); renderLib(); }
 });
 
